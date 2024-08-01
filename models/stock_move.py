@@ -1,6 +1,6 @@
-from odoo import _, api, Command, fields, models
-from odoo.tools.float_utils import float_compare, float_is_zero, float_round
-from odoo.tools.misc import clean_context, OrderedSet, groupby
+from odoo import models
+from odoo.tools.float_utils import float_compare
+from odoo.tools.misc import groupby
 
 
 class StockMove(models.Model):
@@ -13,10 +13,8 @@ class StockMove(models.Model):
         picking to assign them to. """
         Picking = self.env['stock.picking']
         grouped_moves = groupby(self, key=lambda m: m._key_assign_picking())
-        print('grouped moves x :',grouped_moves)
         for group, moves in grouped_moves:
             moves = self.env['stock.move'].concat(*moves)
-            print('% moves :',moves)
             new_picking = False
             # Could pass the arguments contained in group but they are the same
             # for each move that why moves[0] is acceptable
@@ -35,14 +33,17 @@ class StockMove(models.Model):
             else:
                 # Don't create picking for negative moves since they will be
                 # reverse and assign to another picking
-                moves = moves.filtered(
-                    lambda m: float_compare(m.product_uom_qty, 0.0, precision_rounding=m.product_uom.rounding) >= 0)
+                moves = moves.filtered(lambda m: float_compare(m.product_uom_qty, 0.0, precision_rounding=m.product_uom.rounding) >= 0)
                 if not moves:
                     continue
                 new_picking = True
-                picking = Picking.create(moves._get_new_picking_values())
-            print('* moves',moves)
+                for product_type, lines in groupby(moves,
+                                                 key=lambda
+                                                         x: x.product_id.detailed_type):
+                    test_move = self.env['stock.move'].concat(*lines)
+                    picking = picking.create(
+                        test_move._get_new_picking_values())
+                    test_move.write({'picking_id': picking.id})
+                    test_move._assign_picking_post_process(new=new_picking)
 
-            moves.write({'picking_id': picking.id})
-            moves._assign_picking_post_process(new=new_picking)
         return True
