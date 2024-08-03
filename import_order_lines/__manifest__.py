@@ -7,7 +7,7 @@
     'author': "Amrithesh",
     'category': 'Category',
     'description': """
-    Import order lines
+    Import order hello
     """,
     'data': [
         'security/ir.model.access.csv',
